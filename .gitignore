@@ -1,0 +1,5 @@
+packages/
+*.tar
+*.apk
+*.log
+.DS_Store
