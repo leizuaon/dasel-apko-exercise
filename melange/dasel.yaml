@@ -20,8 +20,12 @@ environment:
 pipeline:
   - uses: fetch
     with:
-      uri: https://github.com/TomWright/dasel/archive/refs/tags/v${{package.version}}.tar.gz
+      uri: https://github.com/TomWright/dasel/archive/refs/tags/v3.3.1.tar.gz
       expected-sha256: "0d83ee2235b2698ae84402cc03f0e3880a7b8e132408d5b45d02d544da894abc"
+
+  - uses: patch
+    with:
+      patches: CVE-2026-33320.patch
 
   - runs: |
       mkdir -p "${{targets.destdir}}/usr/bin"
@@ -30,5 +34,5 @@ pipeline:
 test:
   pipeline:
     - runs: |
-        dasel --version
-        echo '{"name":"noa"}' | dasel -r json 'name'
+        dasel version
+        echo '{"name":"noa"}' | dasel query -i json 'name'
