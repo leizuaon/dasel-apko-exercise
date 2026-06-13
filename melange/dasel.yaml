@@ -1,0 +1,34 @@
+package:
+  name: dasel
+  version: 3.3.1
+  epoch: 0
+  description: "Select, put and delete data from JSON, TOML, YAML, XML and CSV files"
+  copyright:
+    - license: MIT
+
+environment:
+  contents:
+    repositories:
+      - https://packages.wolfi.dev/os
+    keyring:
+      - https://packages.wolfi.dev/os/wolfi-signing.rsa.pub
+    packages:
+      - busybox
+      - ca-certificates-bundle
+      - go
+
+pipeline:
+  - uses: fetch
+    with:
+      uri: https://github.com/TomWright/dasel/archive/refs/tags/v${{package.version}}.tar.gz
+      expected-sha256: "0d83ee2235b2698ae84402cc03f0e3880a7b8e132408d5b45d02d544da894abc"
+
+  - runs: |
+      mkdir -p "${{targets.destdir}}/usr/bin"
+      go build -o "${{targets.destdir}}/usr/bin/dasel" ./cmd/dasel
+
+test:
+  pipeline:
+    - runs: |
+        dasel --version
+        echo '{"name":"noa"}' | dasel -r json 'name'

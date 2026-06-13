@@ -2,4 +2,5 @@ packages/
 *.tar
 *.apk
 *.log
+melange.rsa
 .DS_Store
