@@ -6,8 +6,10 @@ contents:
     - https://packages.wolfi.dev/os/wolfi-signing.rsa.pub
     - /work/melange.rsa.pub
   packages:
-    - ca-certificates-bundle
     - dasel
+
+environment:
+  USER: root
 
 entrypoint:
   command: /usr/bin/dasel
