@@ -24,12 +24,13 @@ This project packages `dasel` version `v3.3.1` with Melange, applies a backporte
 * Docker
 * Git
 * Linux/amd64 build target
+* This repository cloned locally
 
 The commands below use Docker to run Melange and apko, so Melange and apko do not need to be installed directly on the host machine.
 
 ## CVE fix
 
-The package builds from the upstream `dasel` `v3.3.1` source tarball.
+The package builds from the upstream `dasel` git repository, pinned to the `v3.3.1` tag and expected commit.
 
 The fix for `CVE-2026-33320` is included as a patch file:
 
@@ -38,6 +39,8 @@ melange/dasel/CVE-2026-33320.patch
 ```
 
 This patch was backported from the upstream `v3.3.2` fix for YAML unbounded expansion. The package version remains `3.3.1`.
+
+The test coverage includes a regression test payload for `CVE-2026-33320` (YAML alias expansion bomb) and verifies that parsing fails with bounded-expansion errors.
 
 ## Generate signing key
 
@@ -63,7 +66,7 @@ melange.rsa.pub
 
 ## Build the Melange package
 
-Run from the repository root:
+Run from the repository root. All commands target **linux/amd64**:
 
 ```bash
 docker run --rm --privileged \
@@ -83,7 +86,23 @@ packages/x86_64/dasel-3.3.1-r0.apk
 packages/x86_64/APKINDEX.tar.gz
 ```
 
-The package test defined in `melange/dasel.yaml` is run as part of the Melange build.
+## Run the Melange package tests
+
+Run from the repository root:
+
+```bash
+docker run --rm --privileged \
+  -v "$PWD":/work \
+  -w /work \
+  cgr.dev/chainguard/melange test melange/dasel.yaml \
+  --arch amd64 \
+  --source-dir melange/dasel
+```
+
+This runs package functional tests defined in `melange/dasel.yaml`, including:
+
+1. JSON query correctness (`dasel query -i json 'name'`)
+2. CVE-2026-33320 regression verification (bounded YAML expansion behavior)
 
 ## Build the apko image
 
@@ -148,6 +167,7 @@ The test verifies that:
 
 1. `dasel` is present and runnable inside the image.
 2. `dasel` performs a real JSON query inside the container.
+3. The CVE-2026-33320 payload is rejected in runtime behavior tests.
 
 ## Manual runtime test
 
@@ -176,6 +196,13 @@ docker run --rm --privileged \
   --arch amd64 \
   --out-dir packages \
   --signing-key melange.rsa \
+  --source-dir melange/dasel
+
+docker run --rm --privileged \
+  -v "$PWD":/work \
+  -w /work \
+  cgr.dev/chainguard/melange test melange/dasel.yaml \
+  --arch amd64 \
   --source-dir melange/dasel
 
 docker run --rm \

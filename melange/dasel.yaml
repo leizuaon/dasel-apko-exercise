@@ -15,13 +15,15 @@ environment:
     packages:
       - busybox
       - ca-certificates-bundle
+      - git
       - go
 
 pipeline:
-  - uses: fetch
+  - uses: git-checkout
     with:
-      uri: https://github.com/TomWright/dasel/archive/refs/tags/v3.3.1.tar.gz
-      expected-sha256: "0d83ee2235b2698ae84402cc03f0e3880a7b8e132408d5b45d02d544da894abc"
+      repository: https://github.com/TomWright/dasel.git
+      tag: v${{package.version}}
+      expected-commit: fba653c7f248aff10f2b89fca93929b64707dfc8
 
   - uses: patch
     with:
@@ -32,7 +34,48 @@ pipeline:
       go build -o "${{targets.destdir}}/usr/bin/dasel" ./cmd/dasel
 
 test:
+  environment:
+    contents:
+      repositories:
+        - https://packages.wolfi.dev/os
+        - /work/packages
+      keyring:
+        - https://packages.wolfi.dev/os/wolfi-signing.rsa.pub
+        - /work/melange.rsa.pub
+      packages:
+        - busybox
+        - dasel
   pipeline:
     - runs: |
         dasel version
-        echo '{"name":"noa"}' | dasel query -i json 'name'
+
+        JSON_RESULT="$(echo '{"name":"noa"}' | dasel query -i json 'name')"
+        if [ "$JSON_RESULT" != '"noa"' ]; then
+          echo "JSON query failed: expected '\"noa\"', got '$JSON_RESULT'"
+          exit 1
+        fi
+
+        YAML_BOMB="$(cat <<'EOF'
+        a: &a ["lol","lol","lol","lol","lol","lol","lol","lol","lol"]
+        b: &b [*a,*a,*a,*a,*a,*a,*a,*a,*a]
+        c: &c [*b,*b,*b,*b,*b,*b,*b,*b,*b]
+        d: &d [*c,*c,*c,*c,*c,*c,*c,*c,*c]
+        e: &e [*d,*d,*d,*d,*d,*d,*d,*d,*d]
+        f: &f [*e,*e,*e,*e,*e,*e,*e,*e,*e]
+        g: &g [*f,*f,*f,*f,*f,*f,*f,*f,*f]
+        h: &h [*g,*g,*g,*g,*g,*g,*g,*g,*g]
+        i: &i [*h,*h,*h,*h,*h,*h,*h,*h,*h]
+        EOF
+        )"
+
+        set +e
+        CVE_ERR="$({ printf '%s\n' "$YAML_BOMB" | dasel query -i yaml 'd' >/dev/null; } 2>&1)"
+        CVE_STATUS=$?
+        set -e
+
+        if [ "$CVE_STATUS" -eq 0 ]; then
+          echo "CVE regression test failed: YAML alias bomb unexpectedly succeeded"
+          exit 1
+        fi
+
+        echo "$CVE_ERR" | grep -Eq 'yaml expansion (depth|budget) exceeded'
